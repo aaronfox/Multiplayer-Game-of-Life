@@ -16,6 +16,7 @@ var config = {
 
 var game = new Phaser.Game(config);
 var graphics;
+var timedEvent;
 
 let hspace = 10;
 let size = {
@@ -60,14 +61,30 @@ function create() {
         });
     });
 
+    // Draw all other player's tiles with this socket
     this.socket.on('otherTileWasPlaced', function(playerInfo) {
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
             if (playerInfo.playerId === otherPlayer.playerId) {
-                // TODO: Update other player's tiles
+                // Update other player's tiles
                 drawTiles(self, playerInfo);
             }
         });
     });
+
+    // Set timer
+    // this.time.addEvent({
+    //     callback: this.timerEvent,
+    //     callbackScope: this,
+    //     delay: 5000, // 5000 = 5 seconds
+    //     loop: true
+    // });
+
+    // timedEvent = this.time.addEvent(1000, timerEvent, [], this, true);
+    this.time.addEvent({ delay: 5000, callback: timerEvent, callbackScope: this, loop: true });
+
+
+
+    // timer.start();
 
     graphics = this.add.graphics({
         lineStyle: {
@@ -148,6 +165,10 @@ function addOtherPlayer(self, playerInfo) {
     const otherPlayer = self.add.image();//'testOtherPlayer';
     otherPlayer.playerId = playerInfo.playerId;
     self.otherPlayers.add(otherPlayer);
+}
+
+function timerEvent(self) {
+    console.log('in timerEvent');
 }
 
 function update() {
