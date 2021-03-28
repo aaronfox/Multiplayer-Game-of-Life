@@ -1,8 +1,11 @@
+let CANVAS_WIDTH = 800
+let CANVAS_HEIGHT= 600
+
 var config = {
     type: Phaser.AUTO,
     parent: '#canvas',
-    width: 800,
-    height: 600,
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
     backgroundColor: '#f0ebeb',
     scene: {
         preload: preload,
@@ -16,14 +19,52 @@ var graphics;
 
 let hspace = 10;
 let size = {
-    x: 50,
-    y: 50
+    x: CANVAS_WIDTH / hspace,
+    y: CANVAS_HEIGHT / hspace
 }
 
 function preload() {
 }
 
 function create() {
+    var self = this;
+    this.socket = io();
+    this.otherPlayers = this.add.group();
+
+    // When a new player is added, add all players including current plauer
+    this.socket.on('currentPlayers', function(players) {
+        Object.keys(players).forEach(function (id) {
+            if (players[id].playerId === self.socket.id) {
+                addPlayer(self, players[id]);
+            } else {
+                addOtherPlayer(self, players[id])
+            }
+        });
+    });
+
+    // When a new player is added, add player to current players of this socket
+    this.socket.on('newPlayer', function(playerInfo) {
+        addOtherPlayer(self, playerInfo);
+    });
+
+    // Remove game object from game
+    this.socket.on('disconnected', function (playerId) {
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+            if (playerId === otherPlayer.playerId) {
+                otherPlayer.destroy();
+            }
+        });
+    });
+
+    this.socket.on('otherTileWasPlaced', function(playerInfo) {
+        self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+            if (playerInfo.playerId === otherPlayer.playerId) {
+                // TODO: Update other player's tiles
+                drawTiles(self, playerInfo);
+            }
+        });
+    });
+
     graphics = this.add.graphics({
         lineStyle: {
             width: 1,
@@ -75,23 +116,63 @@ function create() {
             console.log('pointer.position.x == ' + pointer.position.x);
             console.log('pointer.position.y == ' + pointer.position.y);
             console.log('in')
+
+            // Emit placed tile
+            this.socket.emit('tilePlaced', {x: x, y: y})
         }
     })
 
 }
 
+function drawTiles(self, playerInfo) {
+    console.log('drawing tiles!')
+    console.log(playerInfo)
+
+    graphics.fillStyle(playerInfo.color, 0.75);
+    playerInfo.placedTileLocations.forEach(function(element, index) {
+        graphics.strokeRect(element.x, element.y, hspace, hspace);
+        graphics.fillRect(element.x, element.y, hspace, hspace);
+    });
+
+}
+
+function addPlayer(self, playerInfo) {
+    self.test = self.add.image();//'hello';
+}
+
+function addOtherPlayer(self, playerInfo) {
+    const otherPlayer = self.add.image();//'testOtherPlayer';
+    otherPlayer.playerId = playerInfo.playerId;
+    self.otherPlayers.add(otherPlayer);
+}
+
 function update() {
     // Detect mouse click input
-    if (game.input.mousePointer.isDown) {
-        // graphics.fillStyle(0xAAFF00, alpha);
-        var color = 0x4287f5;
-        var alpha = 0.75;
-        graphics.fillStyle(color, alpha);
-        graphics.strokeRect(game.input.x * hspace, game.input.y * hspace, hspace, hspace);
-        graphics.fillRect(game.input.x * hspace, game.input.y * hspace, hspace, hspace);
-        // console.log('out')
-    }
+    // if (game.input.mousePointer.isDown) {
+    // //     // graphics.fillStyle(0xAAFF00, alpha);
+    // //     var color = 0x4287f5;
+    // //     var alpha = 0.75;
+    // //     graphics.fillStyle(color, alpha);
+    // //     graphics.strokeRect(game.input.x * hspace, game.input.y * hspace, hspace, hspace);
+    // //     graphics.fillRect(game.input.x * hspace, game.input.y * hspace, hspace, hspace);
+    // //     // console.log('out')
+    // var color = 0x4287f5;
+    // var alpha = 0.75;
+    // graphics.fillStyle(color, alpha);
+    // // Round position to next greatest hspace
+    //     let x = Math.floor(game.input.mousePointer.x / hspace) * hspace;
+    //     let y = Math.floor(game.input.mousePointer.y / hspace) * hspace;
+    // if (x < size.x * hspace && y < size.y * hspace) {
+    //     graphics.strokeRect(x, y, hspace, hspace);
+    //     graphics.fillRect(x, y, hspace, hspace);
+    // }
+    //     console.log('game.input.x== ' + game.input.x);
+    //     console.log('game.input.y == ' + game.input.y);
+    // console.log('in')
+    // }
 }
+
+
 
 // OLD GAME CODE
 // var config = {
