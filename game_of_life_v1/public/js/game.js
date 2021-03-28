@@ -37,7 +37,11 @@ function create() {
             if (players[id].playerId === self.socket.id) {
                 addPlayer(self, players[id]);
             } else {
-                addOtherPlayer(self, players[id])
+                addOtherPlayer(self, players[id]);
+                console.log('eep');
+                console.log(players[id]);
+                // Draw other players tiles as well
+                drawTiles(self, players[id]);
             }
         });
     });

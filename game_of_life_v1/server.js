@@ -43,7 +43,7 @@ io.on('connection', function (socket) {
         placedTileLocations: [],
         numberOfTilesOnBoard: 0,
         playerId: socket.id,
-        color: Math.floor(Math.random() * 16777215).toString(16)
+        color: '0x' + (Math.floor(Math.random() * 16777215).toString(16))
     };
     // Send the current players to this current player socket only
     // Note: socket.emit sends objects to just this socket
