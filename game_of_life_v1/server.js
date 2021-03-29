@@ -36,22 +36,17 @@ io.on('connection', function (socket) {
     console.log('a user connected');
     // create a new player and add it to our players object
     players[socket.id] = {
-        rotation: 0,
-        x: Math.floor(Math.random() * 700) + 50,
-        y: Math.floor(Math.random() * 500) + 50,
         tilesToPlace: 12,
         placedTileLocations: [],
+        tilesToPlaceLocations: [],
         numberOfTilesOnBoard: 0,
         playerId: socket.id,
         color: '0x' + (Math.floor(Math.random() * 16777215).toString(16))
     };
-    // Send the current players to this current player socket only
+    // Send the current players to this player socket only
     // Note: socket.emit sends objects to just this socket
     //       while socket.broadcast.emit sends to all other sockets
     socket.emit('currentPlayers', players);
-
-    // send the star object to the new player
-    // socket.emit('starLocation', star);
 
     // send the current scores
     // socket.emit('scoreUpdate', scores);
