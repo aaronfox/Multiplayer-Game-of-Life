@@ -32,11 +32,13 @@ var scores = {
     red: 0
 };
 
+const MAX_TILES_TO_PLACE = 12;
+
 io.on('connection', function (socket) {
     console.log('a user connected');
     // create a new player and add it to our players object
     players[socket.id] = {
-        tilesToPlace: 12,
+        tilesToPlace: MAX_TILES_TO_PLACE,
         placedTileLocations: [],
         tilesToPlaceLocations: [],
         numberOfTilesOnBoard: 0,

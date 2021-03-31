@@ -20,6 +20,8 @@ var game = new Phaser.Game(config);
 var graphics;
 var timedEvent;
 var placeButton;
+const MAX_TILES_TO_PLACE = 12;
+var player = 0;
 
 let hspace = 10;
 let size = {
@@ -46,10 +48,9 @@ function create() {
         Object.keys(players).forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
                 addPlayer(self, players[id]);
+                player = players[id];
             } else {
                 addOtherPlayer(self, players[id]);
-                console.log('eep');
-                console.log(players[id]);
                 // Draw other players tiles as well
                 drawTiles(self, players[id]);
             }
@@ -112,29 +113,91 @@ function create() {
     this.input.on('pointerdown', (pointer) => {
         if (pointer.isDown) {
             var color = 0x4287f5;
-            var alpha = 0.75;
+            var alpha = 1.0;
             graphics.fillStyle(color, alpha);
             var color = 0x4287f5;
-            var thickness = 2;
+            var thickness = 1;
             var alpha = 1;
             graphics.lineStyle(thickness, color, alpha);
             // Round position to next greatest hspace
             let x = Math.floor(pointer.position.x / hspace) * hspace;
             let y = Math.floor(pointer.position.y / hspace) * hspace;
-            if (x < size.x * hspace && y < size.y * hspace) {
+            // TODO: also check for clicking on already existing square and then remove that square from 
+            console.log('before: ' + player.tilesToPlaceLocations);
+            containsLocationIndex = getLocationIndex(player.tilesToPlaceLocations, { x: x, y: y });
+            if (containsLocationIndex > -1) {
+                console.log('removing placed tile')
+                player.tilesToPlaceLocations.splice(containsLocationIndex, 1)
+                player.tilesToPlace++;
+                // TODO: must check if any tiles near this tile. If so, must recolor those 
+
+                var color = 0xffffff;
+                var thickness = 1;
+                var alpha = 1;
+                graphics.lineStyle(thickness, color, alpha);
                 graphics.strokeRect(x, y, hspace, hspace);
+
+                console.log('neighbors == ')
+                adjacentNeighbors = getAdjacentNeighboringBlocks({ x: x, y: y });
+                if (adjacentNeighbors.length > 0) {
+                    var color = 0x4287f5;
+                    var thickness = 1;
+                    var alpha = 1;
+                    graphics.lineStyle(thickness, color, alpha);
+                    neighbors.forEach(function (element) {
+                        graphics.strokeRect(element.x, element.y, hspace, hspace);
+                    });
+                }
+            } else if (x < size.x * hspace && y < size.y * hspace && player.tilesToPlace > 0) {
+                // Here, simply include tile in tiles to place array
+                console.log(player.tilesToPlaceLocations)
+                console.log(player.tilesToPlace)
+                // Subtract amount of tiles player can place
+                player.tilesToPlace--;
+                graphics.strokeRect(x, y, hspace, hspace);
+                // Emit placed tile
+                player.tilesToPlaceLocations.push({ x: x, y: y });
+
+                this.socket.emit('tilePlaced', { x: x, y: y })
+
                 // graphics.fillRect(x, y, hspace, hspace);
             }
             console.log('pointer.position.x == ' + pointer.position.x);
             console.log('pointer.position.y == ' + pointer.position.y);
-            console.log('in')
-
-            // Emit placed tile
-            this.socket.emit('tilePlaced', {x: x, y: y})
         }
     })
 
 }
+
+// Returns neighboring blocks of a cell
+function getAdjacentNeighboringBlocks(location) {
+    // Check up, right, down, left
+    var xLocs = [hspace, 0, -1 * hspace, 0]
+    var yLocs = [0, hspace, 0, -1 * hspace]
+    neighbors = []
+    for (var i = 0; i < xLocs.length; i++) {
+        currLocation = {x: location.x + xLocs[i], y: location.y + yLocs[i]};
+        locationIndex = getLocationIndex(player.tilesToPlaceLocations, currLocation);
+        if (locationIndex > -1) {
+            // Then add this to neighbors
+            neighbors.push(player.tilesToPlaceLocations[locationIndex]);
+        }
+    }
+    return neighbors;
+}
+
+// Checks if an array contains x and y locations already
+// Returns index of element if found and -1 otherwise
+function getLocationIndex(array, location) {
+    for (var i = 0; i < array.length; i++) {
+        element = array[i];
+        if (element.x == location.x && element.y == location.y) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 
 function updateClickCountText() {
     placeButton.setText(`Button has been clicked times.`);
@@ -152,7 +215,7 @@ function drawTiles(self, playerInfo) {
     console.log('drawing tiles!')
     console.log(playerInfo)
 
-    graphics.fillStyle(playerInfo.color, 0.75);
+    graphics.fillStyle(playerInfo.color, 1.0);
     // graphics.lineStyle(0xffffff);
     playerInfo.placedTileLocations.forEach(function(element, index) {
         graphics.strokeRect(element.x, element.y, hspace, hspace);
