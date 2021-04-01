@@ -22,6 +22,10 @@ var timedEvent;
 var placeButton;
 const MAX_TILES_TO_PLACE = 12;
 var player = 0;
+var socket;
+
+// Radial progress
+
 
 let hspace = 10;
 let size = {
@@ -30,12 +34,26 @@ let size = {
 }
 
 function preload() {
+    this.load.image('bubble', 'assets/small_bubble.png');
 }
 
 function create() {
     var self = this;
     this.socket = io();
+    socket = this.socket;
     this.otherPlayers = this.add.group();
+
+    // Progress bar
+    var image = this.add.image(100, 300, 'bubble');
+
+    this.tweens.add({
+        targets: image,
+        x: 400,
+        duration: 5000,
+        ease: 'Sine.easeInOut',
+        loop: -1,
+        loopDelay: 0
+    });
 
     placeButton = this.add.text(CANVAS_WIDTH / 2, (CANVAS_HEIGHT - (50 / 2)), 'Place Tiles', {fill: '#000000'})
     .setInteractive()
@@ -77,10 +95,11 @@ function create() {
         var thickness = 1;
         var alpha = 1;
         graphics.lineStyle(thickness, color, alpha);
-
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-            if (playerInfo.playerId === otherPlayer.playerId) {
+            console.log('otherPlayer.playerId == ' + otherPlayer.playerId)
+            if (playerInfo.playerId === otherPlayer.playerId && player.playerId != otherPlayer.playerId) {
                 // Update other player's tiles
+                console.log('updating other tiles')
                 drawTiles(self, playerInfo);
             }
         });
@@ -92,8 +111,6 @@ function create() {
         callbackScope: this,
         loop: true
     });
-
-    
 
     graphics = this.add.graphics({
         lineStyle: {
@@ -122,22 +139,19 @@ function create() {
             // Round position to next greatest hspace
             let x = Math.floor(pointer.position.x / hspace) * hspace;
             let y = Math.floor(pointer.position.y / hspace) * hspace;
-            // TODO: also check for clicking on already existing square and then remove that square from 
-            console.log('before: ' + player.tilesToPlaceLocations);
+            // Check for clicking on already existing square so we can remove that square
             containsLocationIndex = getLocationIndex(player.tilesToPlaceLocations, { x: x, y: y });
             if (containsLocationIndex > -1) {
                 console.log('removing placed tile')
                 player.tilesToPlaceLocations.splice(containsLocationIndex, 1)
                 player.tilesToPlace++;
-                // TODO: must check if any tiles near this tile. If so, must recolor those 
-
                 var color = 0xffffff;
                 var thickness = 1;
                 var alpha = 1;
                 graphics.lineStyle(thickness, color, alpha);
                 graphics.strokeRect(x, y, hspace, hspace);
 
-                console.log('neighbors == ')
+                // Must check if any tiles near this tile. If so, must recolor those as well
                 adjacentNeighbors = getAdjacentNeighboringBlocks({ x: x, y: y });
                 if (adjacentNeighbors.length > 0) {
                     var color = 0x4287f5;
@@ -148,22 +162,16 @@ function create() {
                         graphics.strokeRect(element.x, element.y, hspace, hspace);
                     });
                 }
+                // End adjacent neighbors check
             } else if (x < size.x * hspace && y < size.y * hspace && player.tilesToPlace > 0) {
+                // TODO: Also check if tile is already in placedTileLocations
                 // Here, simply include tile in tiles to place array
-                console.log(player.tilesToPlaceLocations)
-                console.log(player.tilesToPlace)
                 // Subtract amount of tiles player can place
                 player.tilesToPlace--;
                 graphics.strokeRect(x, y, hspace, hspace);
                 // Emit placed tile
                 player.tilesToPlaceLocations.push({ x: x, y: y });
-
-                this.socket.emit('tilePlaced', { x: x, y: y })
-
-                // graphics.fillRect(x, y, hspace, hspace);
             }
-            console.log('pointer.position.x == ' + pointer.position.x);
-            console.log('pointer.position.y == ' + pointer.position.y);
         }
     })
 
@@ -199,10 +207,6 @@ function getLocationIndex(array, location) {
 }
 
 
-function updateClickCountText() {
-    placeButton.setText(`Button has been clicked times.`);
-}
-
 function placeButtonHoverState() {
     placeButton.setStyle({ fill: '#f0b207' });
 }
@@ -213,10 +217,7 @@ function placeButtonRestState() {
 
 function drawTiles(self, playerInfo) {
     console.log('drawing tiles!')
-    console.log(playerInfo)
-
     graphics.fillStyle(playerInfo.color, 1.0);
-    // graphics.lineStyle(0xffffff);
     playerInfo.placedTileLocations.forEach(function(element, index) {
         graphics.strokeRect(element.x, element.y, hspace, hspace);
         graphics.fillRect(element.x, element.y, hspace, hspace);
@@ -240,172 +241,33 @@ function timerEvent(self) {
 
 function placeTiles(self) {
     console.log('in placeTiles')
+    // Convert all tiles to place and put in placedTilesLocations
+    for (var i = 0; i < player.tilesToPlaceLocations.length; i++) {
+        player.placedTileLocations.push(player.tilesToPlaceLocations[i]);
+    }
+    // Empty out tilesToPlaceLocations
+    player.tilesToPlaceLocations = [];
+    // TODO: Fill in all placed tiles
+    // Placed currently filled tiles
+    console.log('huh');
+    console.log(player.placedTileLocations);
+    placeFilledTiles();
+}
+
+function placeFilledTiles(self) {
+    var color = 0x4287f5;
+    var alpha = 1.0;
+    graphics.fillStyle(color, alpha);
+    for (var i = 0; i < player.placedTileLocations.length; i++) {
+        element = player.placedTileLocations[i];
+        graphics.fillRect(element.x, element.y, hspace, hspace);
+
+        // Emit tilePlaced call here
+        socket.emit('tilePlaced', { x: element.x, y: element.y })
+    }
 }
 
 function update() {
-    // Detect mouse click input
-    // if (game.input.mousePointer.isDown) {
-    // //     // graphics.fillStyle(0xAAFF00, alpha);
-    // //     var color = 0x4287f5;
-    // //     var alpha = 0.75;
-    // //     graphics.fillStyle(color, alpha);
-    // //     graphics.strokeRect(game.input.x * hspace, game.input.y * hspace, hspace, hspace);
-    // //     graphics.fillRect(game.input.x * hspace, game.input.y * hspace, hspace, hspace);
-    // //     // console.log('out')
-    // var color = 0x4287f5;
-    // var alpha = 0.75;
-    // graphics.fillStyle(color, alpha);
-    // // Round position to next greatest hspace
-    //     let x = Math.floor(game.input.mousePointer.x / hspace) * hspace;
-    //     let y = Math.floor(game.input.mousePointer.y / hspace) * hspace;
-    // if (x < size.x * hspace && y < size.y * hspace) {
-    //     graphics.strokeRect(x, y, hspace, hspace);
-    //     graphics.fillRect(x, y, hspace, hspace);
-    // }
-    //     console.log('game.input.x== ' + game.input.x);
-    //     console.log('game.input.y == ' + game.input.y);
-    // console.log('in')
-    // }
+    // Progress bar
+
 }
-
-
-
-// OLD GAME CODE
-// var config = {
-//     type: Phaser.AUTO,
-//     parent: 'phaser-example',
-//     width: 800,
-//     height: 600,
-//     physics: {
-//         default: 'arcade',
-//         arcade: { 
-//             debug: false,
-//             gravity: { y: 0 }
-//         }
-//     },
-//     scene: {
-//         preload: preload,
-//         create: create,
-//         update: update
-//     }
-// };
-
-// var game = new Phaser.Game(config);
-
-// function preload() { 
-//     this.load.image('ship', 'assets/spaceShips_001.png'); 
-//     this.load.image('otherPlayer', 'assets/enemyBlack5.png');
-//     this.load.image('star', 'assets/star_gold.png');
-// }
-
-// function create() {
-//     var self = this;
-//     this.socket = io();
-//     this.otherPlayers = this.physics.add.group();
-//     this.socket.on('currentPlayers', function (players) {
-//         Object.keys(players).forEach(function (id) {
-//             if (players[id].playerId === self.socket.id) {
-//                 addPlayer(self, players[id]);
-//             } else {
-//                 addOtherPlayers(self, players[id]);
-//             }
-//         });
-//     });
-//     this.socket.on('newPlayer', function (playerInfo) {
-//         addOtherPlayers(self, playerInfo);
-//     });
-//     this.socket.on('disconnected', function (playerId) {
-//         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-//             if (playerId === otherPlayer.playerId) {
-//                 otherPlayer.destroy();
-//             }
-//         });
-//     });
-
-//     this.cursors = this.input.keyboard.createCursorKeys();
-
-//     this.socket.on('playerMoved', function (playerInfo) {
-//         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-//             if (playerInfo.playerId === otherPlayer.playerId) {
-//                 otherPlayer.setRotation(playerInfo.rotation);
-//                 otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-//             }
-//         });
-//     });
-
-//     this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
-//     this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
-
-//     this.socket.on('scoreUpdate', function (scores) {
-//         self.blueScoreText.setText('Blue: ' + scores.blue);
-//         self.redScoreText.setText('Red: ' + scores.red);
-//     });
-
-//     this.socket.on('starLocation', function (starLocation) {
-//         if (self.star) self.star.destroy();
-//         self.star = self.physics.add.image(starLocation.x, starLocation.y, 'star');
-//         self.physics.add.overlap(self.ship, self.star, function () {
-//             this.socket.emit('starCollected');
-//         }, null, self);
-//     });
-// }
-
-// function update() { 
-//     if (this.ship) {
-//         if (this.cursors.left.isDown) {
-//             this.ship.setAngularVelocity(-150);
-//         } else if (this.cursors.right.isDown) {
-//             this.ship.setAngularVelocity(150);
-//         } else {
-//             this.ship.setAngularVelocity(0);
-//         }
-
-//         if (this.cursors.up.isDown) {
-//             this.physics.velocityFromRotation(this.ship.rotation + 1.5, 100, this.ship.body.acceleration);
-//         } else {
-//             this.ship.setAcceleration(0);
-//         }
-
-//         this.physics.world.wrap(this.ship, 5);
-
-//         // emit player movement
-//         var x = this.ship.x;
-//         var y = this.ship.y;
-//         var r = this.ship.rotation;
-//         if (this.ship.oldPosition && (x !== this.ship.oldPosition.x || y !== this.ship.oldPosition.y || r !== this.ship.oldPosition.rotation)) {
-//             this.socket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation });
-//         }
-
-//         // save old position data
-//         this.ship.oldPosition = {
-//             x: this.ship.x,
-//             y: this.ship.y,
-//             rotation: this.ship.rotation
-//         };
-//     }
-
-
-// }
-
-// function addPlayer(self, playerInfo) {
-//     self.ship = self.physics.add.image(playerInfo.x, playerInfo.y, 'ship').setOrigin(0.5, 0.5).setDisplaySize(53, 40);
-//     if (playerInfo.team === 'blue') {
-//         self.ship.setTint(0x0000ff);
-//     } else {
-//         self.ship.setTint(0xff0000);
-//     }
-//     self.ship.setDrag(100);
-//     self.ship.setAngularDrag(100);
-//     self.ship.setMaxVelocity(200);
-// }
-
-// function addOtherPlayers(self, playerInfo) {
-//     const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, 'otherPlayer').setOrigin(0.5, 0.5).setDisplaySize(53, 40);
-//     if (playerInfo.team === 'blue') {
-//         otherPlayer.setTint(0x0000ff);
-//     } else {
-//         otherPlayer.setTint(0xff0000);
-//     }
-//     otherPlayer.playerId = playerInfo.playerId;
-//     self.otherPlayers.add(otherPlayer);
-// }
