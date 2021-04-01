@@ -34,7 +34,7 @@ let size = {
 }
 
 function preload() {
-    this.load.image('bubble', 'assets/small_bubble.png');
+    this.load.image('bubble', 'assets/smaller_bubble.png');
 }
 
 function create() {
@@ -44,7 +44,7 @@ function create() {
     this.otherPlayers = this.add.group();
 
     // Progress bar
-    var image = this.add.image(100, 300, 'bubble');
+    var image = this.add.image(100, (CANVAS_HEIGHT - (50 / 2)), 'bubble');
 
     this.tweens.add({
         targets: image,
@@ -54,6 +54,10 @@ function create() {
         loop: -1,
         loopDelay: 0
     });
+
+    var r2 = this.add.circle(405, 475, 20);
+    r2.setStrokeStyle(2, 0x1a65ac);
+    placeButton = this.add.text(CANVAS_WIDTH / 2 - 115, (CANVAS_HEIGHT - (50 / 2) - 10), 'Step', { fill: '#000000' })
 
     placeButton = this.add.text(CANVAS_WIDTH / 2, (CANVAS_HEIGHT - (50 / 2)), 'Place Tiles', {fill: '#000000'})
     .setInteractive()
