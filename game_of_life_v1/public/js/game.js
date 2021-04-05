@@ -23,6 +23,7 @@ var placeButton;
 const MAX_TILES_TO_PLACE = 12;
 var player = 0;
 var socket;
+var bubbleTween;
 
 // Radial progress
 
@@ -46,7 +47,7 @@ function create() {
     // Progress bar
     var image = this.add.image(100, (CANVAS_HEIGHT - (50 / 2)), 'bubble');
 
-    this.tweens.add({
+    bubbleTween = this.tweens.add({
         targets: image,
         x: 400,
         duration: 5000,
@@ -82,6 +83,12 @@ function create() {
     // When a new player is added, add player to current players of this socket
     this.socket.on('newPlayer', function(playerInfo) {
         addOtherPlayer(self, playerInfo);
+    });
+
+    this.socket.on('step', function (playerInfo) {
+        bubbleTween.restart();
+        console.log(playerInfo);
+        console.log('step!')
     });
 
     // Remove game object from game

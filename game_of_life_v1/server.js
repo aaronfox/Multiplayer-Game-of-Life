@@ -94,3 +94,13 @@ app.get('/multi_game', function (req, res) {
     // res.sendFile('pages/multi_game.html');
 
 });
+// slide = 0
+setInterval(step, 5000); // advance slides every 4 seconds
+
+function test() {
+    io.sockets.emit('step', 2);
+}
+// function next() {
+//     if (++slide >= slides.length) slide = 0;
+//     io.sockets.emit('slide', slide);
+// }
