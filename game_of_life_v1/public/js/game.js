@@ -25,9 +25,6 @@ var player = 0;
 var socket;
 var bubbleTween;
 
-// Radial progress
-
-
 let hspace = 10;
 let size = {
     x: CANVAS_WIDTH / hspace,
@@ -89,6 +86,13 @@ function create() {
         bubbleTween.restart();
         console.log(playerInfo);
         console.log('step!')
+        // TODO: Apply GoL rules here appropriately
+        // TODO: check for tiles to place as well
+
+        // Iterate through each currently live cell
+        for (var i = 0; i < player.placedTileLocations.length; i++) {
+            applyGoLRules(player.placedTileLocations[i]);
+        }
     });
 
     // Remove game object from game
@@ -116,12 +120,12 @@ function create() {
         });
     });
 
-    this.time.addEvent({ 
-        delay: 5000,
-        callback: timerEvent,
-        callbackScope: this,
-        loop: true
-    });
+    // this.time.addEvent({ 
+    //     delay: 5000,
+    //     callback: timerEvent,
+    //     callbackScope: this,
+    //     loop: true
+    // });
 
     graphics = this.add.graphics({
         lineStyle: {
@@ -188,6 +192,56 @@ function create() {
 
 }
 
+function applyGoLRules(tile) {
+    // Any cell with two or 3 neighbors survives
+    console.log('number of neighbors: ' + getNumberOfAdjacentNeighboringBlocks(tile))
+    // Iterate through grid
+    // Clone of grid
+    const newTilePlacements = [...player.placedTileLocations]
+    // Iterate through each row
+    for (var i = 0; i < CANVAS_WIDTH; i += hspace) {
+        // Iterate through each column
+        for (var j = 0; j < CANVAS_HEIGHT - 50; j += hspace) {
+            // Get number of neighbors for this tile
+            currElement = { x: i, y: j };
+            numNeighbors = getNumberOfAdjacentNeighboringBlocks(currElement);
+
+            index = getLocationIndex(player.placedTileLocations, currElement);
+            // If neighbor is alive
+            if (index > -1) {
+                if (numNeighbors < 2 || numNeighbors > 3) {
+                    // newTilePlacements[]
+                    // TODO: remove this cell from placedTileLocations since it died
+                }
+            } else {
+                // Otherwise, this cell is dead and should be alive if 3 neighbors
+                if (numNeighbors == 3) {
+                    newTilePlacements.push(currElement);
+                }
+            }
+        }
+    }
+
+    // TODO: Now update data
+    player.placedTileLocations = newTilePlacements;
+    console.log('newTilePlacements == ')
+    console.log(newTilePlacements)
+
+    // Make sure to place filled tiles which in turn emits this to other players
+    placeFilledTiles();
+
+    if (getNumberOfAdjacentNeighboringBlocks(tile) == 2 || getNumberOfAdjacentNeighboringBlocks(tile) == 3) {
+        console.log(tile.x + ', ' + tile.y + ' lives!');
+    } else {
+        console.log(tile.x + ', ' + tile.y + ' dies');
+    }
+
+    // Any dead cell with three live neighbors becomes live
+
+    // All other cells die
+
+}
+
 // Returns neighboring blocks of a cell
 function getAdjacentNeighboringBlocks(location) {
     // Check up, right, down, left
@@ -205,11 +259,28 @@ function getAdjacentNeighboringBlocks(location) {
     return neighbors;
 }
 
+// Returns number of neighboring blocks of a cell
+function getNumberOfAdjacentNeighboringBlocks(location) {
+    // Check up, right, down, left
+    var xLocs = [hspace, 0, -1 * hspace, 0]
+    var yLocs = [0, hspace, 0, -1 * hspace]
+    count = 0
+    for (var i = 0; i < xLocs.length; i++) {
+        currLocation = { x: location.x + xLocs[i], y: location.y + yLocs[i] };
+        locationIndex = getLocationIndex(player.placedTileLocations, currLocation);
+        if (locationIndex > -1) {
+            count++;
+        }
+    }
+    return count;
+}
+
 // Checks if an array contains x and y locations already
 // Returns index of element if found and -1 otherwise
 function getLocationIndex(array, location) {
     for (var i = 0; i < array.length; i++) {
         element = array[i];
+
         if (element.x == location.x && element.y == location.y) {
             return i;
         }
@@ -246,12 +317,11 @@ function addOtherPlayer(self, playerInfo) {
     self.otherPlayers.add(otherPlayer);
 }
 
-function timerEvent(self) {
-    console.log('in timerEvent');
-}
+// function timerEvent(self) {
+//     console.log('in timerEvent');
+// }
 
 function placeTiles(self) {
-    console.log('in placeTiles')
     // Convert all tiles to place and put in placedTilesLocations
     for (var i = 0; i < player.tilesToPlaceLocations.length; i++) {
         player.placedTileLocations.push(player.tilesToPlaceLocations[i]);
@@ -260,8 +330,8 @@ function placeTiles(self) {
     player.tilesToPlaceLocations = [];
     // TODO: Fill in all placed tiles
     // Placed currently filled tiles
-    console.log('huh');
-    console.log(player.placedTileLocations);
+    console.log('placed tiles: ')
+    console.log(player.placedTileLocations)
     placeFilledTiles();
 }
 
@@ -279,6 +349,5 @@ function placeFilledTiles(self) {
 }
 
 function update() {
-    // Progress bar
 
 }

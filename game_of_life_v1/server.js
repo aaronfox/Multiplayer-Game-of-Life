@@ -97,7 +97,7 @@ app.get('/multi_game', function (req, res) {
 // slide = 0
 setInterval(step, 5000); // advance slides every 4 seconds
 
-function test() {
+function step() {
     io.sockets.emit('step', 2);
 }
 // function next() {
