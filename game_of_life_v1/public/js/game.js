@@ -90,9 +90,9 @@ function create() {
         // TODO: check for tiles to place as well
 
         // Iterate through each currently live cell
-        for (var i = 0; i < player.placedTileLocations.length; i++) {
-            applyGoLRules(player.placedTileLocations[i]);
-        }
+        // for (var i = 0; i < player.placedTileLocations.length; i++) {
+            applyGoLRules();//player.placedTileLocations[i]);
+        // }
     });
 
     // Remove game object from game
@@ -110,6 +110,8 @@ function create() {
         var thickness = 1;
         var alpha = 1;
         graphics.lineStyle(thickness, color, alpha);
+        // TODO: Draw blank grid here and fill in other player's cells as appropriate
+        // drawBlankGrid();
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
             console.log('otherPlayer.playerId == ' + otherPlayer.playerId)
             if (playerInfo.playerId === otherPlayer.playerId && player.playerId != otherPlayer.playerId) {
@@ -192,31 +194,53 @@ function create() {
 
 }
 
-function applyGoLRules(tile) {
-    // Any cell with two or 3 neighbors survives
-    console.log('number of neighbors: ' + getNumberOfAdjacentNeighboringBlocks(tile))
-    // Iterate through grid
-    // Clone of grid
-    const newTilePlacements = [...player.placedTileLocations]
-    // Iterate through each row
-    for (var i = 0; i < CANVAS_WIDTH; i += hspace) {
-        // Iterate through each column
-        for (var j = 0; j < CANVAS_HEIGHT - 50; j += hspace) {
-            // Get number of neighbors for this tile
-            currElement = { x: i, y: j };
-            numNeighbors = getNumberOfAdjacentNeighboringBlocks(currElement);
+function drawBlankGrid() {
+    // Draw initial grid
+    graphics.clear();
+    for (let ix = 0; ix < size.x; ix++) {
+        for (let iy = 0; iy < size.y; iy++) {
+            graphics.strokeRect(ix * hspace, iy * hspace, hspace, hspace);
+        }
+    }
+    placeFilledTiles();
+    drawTilesToPlace();
+}
 
-            index = getLocationIndex(player.placedTileLocations, currElement);
-            // If neighbor is alive
-            if (index > -1) {
-                if (numNeighbors < 2 || numNeighbors > 3) {
-                    // newTilePlacements[]
-                    // TODO: remove this cell from placedTileLocations since it died
-                }
-            } else {
-                // Otherwise, this cell is dead and should be alive if 3 neighbors
-                if (numNeighbors == 3) {
-                    newTilePlacements.push(currElement);
+function applyGoLRules() {
+    // Clone of grid
+    var newTilePlacements = [...player.placedTileLocations]
+
+    if (newTilePlacements.length < 3) {
+        newTilePlacements = []
+    } else {
+        // Iterate through each row of grid
+        for (var i = 0; i < CANVAS_WIDTH; i += hspace) {
+            // Iterate through each column
+            for (var j = 0; j < CANVAS_HEIGHT - 50; j += hspace) {
+                // Get number of neighbors for this tile
+                currElement = { x: i, y: j };
+                // numNeighbors = getNumberOfAdjacentNeighboringBlocks(currElement);
+                numNeighbors = getNumberOfNeighboringBlocks(currElement);
+                // console.log('newTilePlacements.length == ' + newTilePlacements.length)
+
+                index = getLocationIndex(player.placedTileLocations, currElement);
+                // If cell is alive
+                if (index > -1) {
+                    if (numNeighbors < 2 || numNeighbors > 3) {
+                        // newTilePlacements[]
+                        // TODO: remove this cell from placedTileLocations since it died
+                        for (var k = 0; k < newTilePlacements.length; k++) {
+                            if (newTilePlacements[k].x == currElement.x && newTilePlacements[k].y == currElement.y) {
+                                newTilePlacements.splice(k, 1);
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // Otherwise, this cell is dead and should be alive if 3 neighbors
+                    if (numNeighbors == 3) {
+                        newTilePlacements.push(currElement);
+                    }
                 }
             }
         }
@@ -224,17 +248,16 @@ function applyGoLRules(tile) {
 
     // TODO: Now update data
     player.placedTileLocations = newTilePlacements;
-    console.log('newTilePlacements == ')
-    console.log(newTilePlacements)
+    drawBlankGrid();
 
     // Make sure to place filled tiles which in turn emits this to other players
-    placeFilledTiles();
+    // placeFilledTiles();
 
-    if (getNumberOfAdjacentNeighboringBlocks(tile) == 2 || getNumberOfAdjacentNeighboringBlocks(tile) == 3) {
-        console.log(tile.x + ', ' + tile.y + ' lives!');
-    } else {
-        console.log(tile.x + ', ' + tile.y + ' dies');
-    }
+    // if (getNumberOfAdjacentNeighboringBlocks(tile) == 2 || getNumberOfAdjacentNeighboringBlocks(tile) == 3) {
+    //     console.log(tile.x + ', ' + tile.y + ' lives!');
+    // } else {
+    //     console.log(tile.x + ', ' + tile.y + ' dies');
+    // }
 
     // Any dead cell with three live neighbors becomes live
 
@@ -275,6 +298,22 @@ function getNumberOfAdjacentNeighboringBlocks(location) {
     return count;
 }
 
+// Returns number of neighboring blocks of a cell out of 8
+function getNumberOfNeighboringBlocks(location) {
+    // Check up, up-right, right, down-right, down, down-left, left, up-left
+    var xLocs = [hspace, hspace, 0, -1 * hspace, -1 * hspace, -1 * hspace, 0, hspace]
+    var yLocs = [0, hspace, hspace, hspace, 0, -1 * hspace, -1 * hspace, -1 * hspace]
+    count = 0
+    for (var i = 0; i < xLocs.length; i++) {
+        currLocation = { x: location.x + xLocs[i], y: location.y + yLocs[i] };
+        locationIndex = getLocationIndex(player.placedTileLocations, currLocation);
+        if (locationIndex > -1) {
+            count++;
+        }
+    }
+    return count;
+}
+
 // Checks if an array contains x and y locations already
 // Returns index of element if found and -1 otherwise
 function getLocationIndex(array, location) {
@@ -298,13 +337,21 @@ function placeButtonRestState() {
 }
 
 function drawTiles(self, playerInfo) {
-    console.log('drawing tiles!')
     graphics.fillStyle(playerInfo.color, 1.0);
     playerInfo.placedTileLocations.forEach(function(element, index) {
         graphics.strokeRect(element.x, element.y, hspace, hspace);
         graphics.fillRect(element.x, element.y, hspace, hspace);
     });
+}
 
+function drawTilesToPlace(self) {
+    var color = 0x4287f5;
+    var thickness = 1;
+    var alpha = 1;
+    graphics.lineStyle(thickness, color, alpha);
+    player.tilesToPlaceLocations.forEach(function (element, index) {
+        graphics.strokeRect(element.x, element.y, hspace, hspace);
+    });
 }
 
 function addPlayer(self, playerInfo) {
