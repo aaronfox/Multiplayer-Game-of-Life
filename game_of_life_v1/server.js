@@ -86,6 +86,15 @@ io.on('connection', function (socket) {
         // Emit message to all players that tile was placed
         socket.broadcast.emit('otherTileWasPlaced', players[socket.id])
     })
+
+    // Clears out all previous tiles to clear board of any previously removed
+    // tiles that were once placed
+    socket.on('clearCells', function () {
+        players[socket.id].placedTileLocations = []
+
+        // Emit message to all players to clear out current placedTileLocations array
+        socket.broadcast.emit('otherTileWasPlaced', players[socket.id])
+    })
 });
 
 app.get('/multi_game', function (req, res) {

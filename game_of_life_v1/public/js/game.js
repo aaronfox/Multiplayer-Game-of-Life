@@ -24,6 +24,8 @@ const MAX_TILES_TO_PLACE = 12;
 var player = 0;
 var socket;
 var bubbleTween;
+var aliveCellsText;
+var cellsLeftToPlaceText;
 
 let hspace = 10;
 let size = {
@@ -41,7 +43,7 @@ function create() {
     socket = this.socket;
     this.otherPlayers = this.add.group();
 
-    // Progress bar
+    // Progress bar as bubble
     var image = this.add.image(100, (CANVAS_HEIGHT - (50 / 2)), 'bubble');
 
     bubbleTween = this.tweens.add({
@@ -55,9 +57,13 @@ function create() {
 
     var r2 = this.add.circle(405, 475, 20);
     r2.setStrokeStyle(2, 0x1a65ac);
-    placeButton = this.add.text(CANVAS_WIDTH / 2 - 115, (CANVAS_HEIGHT - (50 / 2) - 10), 'Step', { fill: '#000000' })
 
-    placeButton = this.add.text(CANVAS_WIDTH / 2, (CANVAS_HEIGHT - (50 / 2)), 'Place Tiles', {fill: '#000000'})
+    // Visual texts and buttons to display
+    stepText = this.add.text(CANVAS_WIDTH / 2 - 115, (CANVAS_HEIGHT - (50 / 2) - 10), 'Step', { fill: '#000000' })
+    aliveCellsText = this.add.text(CANVAS_WIDTH / 2 + 200, (CANVAS_HEIGHT - (50 / 2) - 20), 'Alive Cells: 0', { fill: '#000000' })
+    cellsLeftToPlaceText = this.add.text(CANVAS_WIDTH / 2 + 200, (CANVAS_HEIGHT - (50 / 2)), 'Cells to Place: 0', { fill: '#000000' })
+
+    placeButton = this.add.text(CANVAS_WIDTH / 2, (CANVAS_HEIGHT - (50 / 2) - 10), 'Place Tiles', {fill: '#000000'})
     .setInteractive()
     .on('pointerdown', () => placeTiles())
     .on('pointerover', () => placeButtonHoverState())
@@ -110,13 +116,12 @@ function create() {
         var thickness = 1;
         var alpha = 1;
         graphics.lineStyle(thickness, color, alpha);
-        // TODO: Draw blank grid here and fill in other player's cells as appropriate
-        // drawBlankGrid();
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
             console.log('otherPlayer.playerId == ' + otherPlayer.playerId)
             if (playerInfo.playerId === otherPlayer.playerId && player.playerId != otherPlayer.playerId) {
                 // Update other player's tiles
                 console.log('updating other tiles')
+                console.log(playerInfo)
                 drawTiles(self, playerInfo);
             }
         });
@@ -194,7 +199,7 @@ function create() {
 
 }
 
-function drawBlankGrid() {
+function redrawGrid() {
     // Draw initial grid
     graphics.clear();
     for (let ix = 0; ix < size.x; ix++) {
@@ -219,16 +224,13 @@ function applyGoLRules() {
             for (var j = 0; j < CANVAS_HEIGHT - 50; j += hspace) {
                 // Get number of neighbors for this tile
                 currElement = { x: i, y: j };
-                // numNeighbors = getNumberOfAdjacentNeighboringBlocks(currElement);
                 numNeighbors = getNumberOfNeighboringBlocks(currElement);
-                // console.log('newTilePlacements.length == ' + newTilePlacements.length)
 
                 index = getLocationIndex(player.placedTileLocations, currElement);
                 // If cell is alive
                 if (index > -1) {
                     if (numNeighbors < 2 || numNeighbors > 3) {
-                        // newTilePlacements[]
-                        // TODO: remove this cell from placedTileLocations since it died
+                        // Remove this cell from placedTileLocations since it died
                         for (var k = 0; k < newTilePlacements.length; k++) {
                             if (newTilePlacements[k].x == currElement.x && newTilePlacements[k].y == currElement.y) {
                                 newTilePlacements.splice(k, 1);
@@ -246,9 +248,15 @@ function applyGoLRules() {
         }
     }
 
-    // TODO: Now update data
+    // Now update player data
     player.placedTileLocations = newTilePlacements;
-    drawBlankGrid();
+
+    // Redraw grid and update it
+    redrawGrid();
+
+    // Update UI accordingly
+    updateAliveCellsText();
+    updateCellsToPlaceText();
 
     // Make sure to place filled tiles which in turn emits this to other players
     // placeFilledTiles();
@@ -262,6 +270,14 @@ function applyGoLRules() {
     // Any dead cell with three live neighbors becomes live
 
     // All other cells die
+
+}
+
+function updateAliveCellsText() {
+
+}
+
+function updateCellsToPlaceText() {
 
 }
 
@@ -386,6 +402,9 @@ function placeFilledTiles(self) {
     var color = 0x4287f5;
     var alpha = 1.0;
     graphics.fillStyle(color, alpha);
+    // First clear out all previous tiles to clear board of any previously removed
+    // tiles that were once placed
+    socket.emit('clearCells')
     for (var i = 0; i < player.placedTileLocations.length; i++) {
         element = player.placedTileLocations[i];
         graphics.fillRect(element.x, element.y, hspace, hspace);
