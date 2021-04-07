@@ -61,7 +61,7 @@ function create() {
     // Visual texts and buttons to display
     stepText = this.add.text(CANVAS_WIDTH / 2 - 115, (CANVAS_HEIGHT - (50 / 2) - 10), 'Step', { fill: '#000000' })
     aliveCellsText = this.add.text(CANVAS_WIDTH / 2 + 200, (CANVAS_HEIGHT - (50 / 2) - 20), 'Alive Cells: 0', { fill: '#000000' })
-    cellsLeftToPlaceText = this.add.text(CANVAS_WIDTH / 2 + 200, (CANVAS_HEIGHT - (50 / 2)), 'Cells to Place: 0', { fill: '#000000' })
+    cellsLeftToPlaceText = this.add.text(CANVAS_WIDTH / 2 + 200, (CANVAS_HEIGHT - (50 / 2)), 'Cells to Place: ' + MAX_TILES_TO_PLACE, { fill: '#000000' })
 
     placeButton = this.add.text(CANVAS_WIDTH / 2, (CANVAS_HEIGHT - (50 / 2) - 10), 'Place Tiles', {fill: '#000000'})
     .setInteractive()
@@ -90,7 +90,6 @@ function create() {
 
     this.socket.on('step', function (playerInfo) {
         bubbleTween.restart();
-        console.log(playerInfo);
         console.log('step!')
         // TODO: Apply GoL rules here appropriately
         // TODO: check for tiles to place as well
@@ -127,13 +126,6 @@ function create() {
         });
     });
 
-    // this.time.addEvent({ 
-    //     delay: 5000,
-    //     callback: timerEvent,
-    //     callbackScope: this,
-    //     loop: true
-    // });
-
     graphics = this.add.graphics({
         lineStyle: {
             width: 1,
@@ -167,6 +159,7 @@ function create() {
                 console.log('removing placed tile')
                 player.tilesToPlaceLocations.splice(containsLocationIndex, 1)
                 player.tilesToPlace++;
+                updateCellsToPlaceText();
                 var color = 0xffffff;
                 var thickness = 1;
                 var alpha = 1;
@@ -189,10 +182,20 @@ function create() {
                 // TODO: Also check if tile is already in placedTileLocations
                 // Here, simply include tile in tiles to place array
                 // Subtract amount of tiles player can place
-                player.tilesToPlace--;
-                graphics.strokeRect(x, y, hspace, hspace);
-                // Emit placed tile
-                player.tilesToPlaceLocations.push({ x: x, y: y });
+                var cellIsDead = true;
+                for (var i = 0; i < player.placedTileLocations.length; i++) {
+                    if (x == player.placedTileLocations[i].x && y == player.placedTileLocations[i].y) {
+                        console.log('already in placedTileLocations');
+                        cellIsDead = false;
+                    }
+                }
+                if (cellIsDead) {
+                    player.tilesToPlace--;
+                    updateCellsToPlaceText();
+                    graphics.strokeRect(x, y, hspace, hspace);
+                    // Emit placed tile
+                    player.tilesToPlaceLocations.push({ x: x, y: y });
+                }
             }
         }
     })
@@ -256,7 +259,7 @@ function applyGoLRules() {
 
     // Update UI accordingly
     updateAliveCellsText();
-    updateCellsToPlaceText();
+    // updateCellsToPlaceText();
 
     // Make sure to place filled tiles which in turn emits this to other players
     // placeFilledTiles();
@@ -274,11 +277,11 @@ function applyGoLRules() {
 }
 
 function updateAliveCellsText() {
-
+    aliveCellsText.text = 'Alive Cells: ' + player.placedTileLocations.length;
 }
 
 function updateCellsToPlaceText() {
-
+    cellsLeftToPlaceText.text = 'Cells to Place: ' + player.tilesToPlace;
 }
 
 // Returns neighboring blocks of a cell
