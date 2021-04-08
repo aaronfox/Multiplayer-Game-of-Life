@@ -15,17 +15,18 @@ var config = {
 };
 // Refer to this for scaling game window
 // game = new Phaser.Game(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio, Phaser.CANVAS, 'gameArea');
+const MAX_TILES_TO_PLACE = 12;
+const STEPS_REQUIRED_TO_INCREMENT_CELLS_TO_PLACE = 5;
 
 var game = new Phaser.Game(config);
 var graphics;
-var timedEvent;
 var placeButton;
-const MAX_TILES_TO_PLACE = 12;
 var player = 0;
 var socket;
 var bubbleTween;
 var aliveCellsText;
 var cellsLeftToPlaceText;
+var steps_since_cell_to_place_incremented = 0;
 
 let hspace = 10;
 let size = {
@@ -43,7 +44,7 @@ function create() {
     socket = this.socket;
     this.otherPlayers = this.add.group();
 
-    // Progress bar as bubble
+    // Progress bar represented as bubble
     var image = this.add.image(100, (CANVAS_HEIGHT - (50 / 2)), 'bubble');
 
     bubbleTween = this.tweens.add({
@@ -69,7 +70,7 @@ function create() {
     .on('pointerover', () => placeButtonHoverState())
     .on('pointerout', () => placeButtonRestState());
 
-    // When a new player is added, add all players including current plauer
+    // When a new player is added, add all players including current player
     this.socket.on('currentPlayers', function(players) {
         Object.keys(players).forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
@@ -90,14 +91,27 @@ function create() {
 
     this.socket.on('step', function (playerInfo) {
         bubbleTween.restart();
-        console.log('step!')
-        // TODO: Apply GoL rules here appropriately
-        // TODO: check for tiles to place as well
 
-        // Iterate through each currently live cell
-        // for (var i = 0; i < player.placedTileLocations.length; i++) {
-            applyGoLRules();//player.placedTileLocations[i]);
-        // }
+        // Increment number of cells user can place by one if not already at max tiles to place
+        // Ensure to also check current tiles to place as well to make sure user isn't trying to sneak more alive cells in
+        // than they're allowed
+        if (player.tilesToPlace + player.tilesToPlaceLocations.length < MAX_TILES_TO_PLACE) {
+            if (steps_since_cell_to_place_incremented == STEPS_REQUIRED_TO_INCREMENT_CELLS_TO_PLACE) {
+                steps_since_cell_to_place_incremented = 0;
+                
+                // Increment player's cells to place count
+                player.tilesToPlace++;
+                updateCellsToPlaceText();
+
+            } else {
+                steps_since_cell_to_place_incremented++;
+            }
+        } else {
+            steps_since_cell_to_place_incremented = 0;
+        }
+
+        // Apply GoL rules here appropriately
+        applyGoLRules();
     });
 
     // Remove game object from game
@@ -179,14 +193,14 @@ function create() {
                 }
                 // End adjacent neighbors check
             } else if (x < size.x * hspace && y < size.y * hspace && player.tilesToPlace > 0) {
-                // TODO: Also check if tile is already in placedTileLocations
+                // Also check if tile is already in placedTileLocations
                 // Here, simply include tile in tiles to place array
                 // Subtract amount of tiles player can place
                 var cellIsDead = true;
                 for (var i = 0; i < player.placedTileLocations.length; i++) {
                     if (x == player.placedTileLocations[i].x && y == player.placedTileLocations[i].y) {
-                        console.log('already in placedTileLocations');
                         cellIsDead = false;
+                        break;
                     }
                 }
                 if (cellIsDead) {
