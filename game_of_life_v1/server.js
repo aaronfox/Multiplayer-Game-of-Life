@@ -21,17 +21,6 @@ var io = require('socket.io')(server);
 // Keep track of all players in game with players
 var players = {};
 
-// star variable keeps track of position of star collectibles
-var star = {
-    x: Math.floor(Math.random() * 700) + 50,
-    y: Math.floor(Math.random() * 500) + 50
-};
-// scores variable keeps track of both team's score
-var scores = {
-    blue: 0,
-    red: 0
-};
-
 const MAX_TILES_TO_PLACE = 12;
 
 io.on('connection', function (socket) {
@@ -62,26 +51,16 @@ io.on('connection', function (socket) {
         delete players[socket.id];
         // Check if this is last player
         if (players.length == undefined) {
-            console.log('last!!!');
-            // TODO: Reset board since no players left
-            // scores.red = 0;
-            // scores.blue = 0;
-            // star.x = Math.floor(Math.random() * 700) + 50;
-            // star.y = Math.floor(Math.random() * 500) + 50;
-            // io.emit('starLocation', star);
-            // io.emit('scoreUpdate', scores);
+            // Reset board since no players left
+            // This is done automatically by logic of game.js
         }
         // emit a message to all players to remove this player
-        // NOTE: changed this from original
         io.emit('disconnected', socket.id);
     });
 
     // Sends to all other players that this player placed a new tile
     socket.on('tilePlaced', function(tileData) {
         players[socket.id].placedTileLocations.push(tileData);
-        console.log(players[socket.id].placedTileLocations);
-        console.log('ahh');
-        console.log('in tileplaced in server.js')
 
         // Emit message to all players that tile was placed
         socket.broadcast.emit('otherTileWasPlaced', players[socket.id])
@@ -109,7 +88,3 @@ setInterval(step, 5000); // advance slides every 5 seconds
 function step() {
     io.sockets.emit('step', 2);
 }
-// function next() {
-//     if (++slide >= slides.length) slide = 0;
-//     io.sockets.emit('slide', slide);
-// }
