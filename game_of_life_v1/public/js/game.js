@@ -149,11 +149,8 @@ function create() {
         var alpha = 1;
         graphics.lineStyle(thickness, color, alpha);
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-            console.log('otherPlayer.playerId == ' + otherPlayer.playerId)
             if (playerInfo.playerId === otherPlayer.playerId && player.playerId != otherPlayer.playerId) {
                 // Update other player's tiles
-                console.log('updating other tiles')
-                console.log(playerInfo)
                 drawTiles(self, playerInfo);
             }
         });
@@ -191,7 +188,6 @@ function create() {
             // Check for clicking on already existing square so we can remove that square
             containsLocationIndex = getLocationIndex(player.tilesToPlaceLocations, { x: x, y: y });
             if (containsLocationIndex > -1) {
-                console.log('removing placed tile')
                 player.tilesToPlaceLocations.splice(containsLocationIndex, 1)
                 player.tilesToPlace++;
                 updateCellsToPlaceText();
@@ -443,8 +439,6 @@ function placeTiles(self) {
     player.tilesToPlaceLocations = [];
     // Fill in all placed tiles
     // Placed currently filled tiles
-    console.log('placed tiles: ')
-    console.log(player.placedTileLocations)
     placeFilledTiles();
 }
 
