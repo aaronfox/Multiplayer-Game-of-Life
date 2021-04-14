@@ -1,3 +1,7 @@
+// Author: Aaron Fox
+// Description: Game logic for creating an adjustable gamified version of the Game of Life cellular automata simulation.
+
+// Configuration variables for the game and canvas
 let CANVAS_WIDTH = 1000
 let CANVAS_HEIGHT= 500
 
@@ -10,34 +14,41 @@ var config = {
     scene: {
         preload: preload,
         create: create,
-        update: update
     }
 };
+
 // Refer to this for scaling game window
 // game = new Phaser.Game(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio, Phaser.CANVAS, 'gameArea');
 const MAX_TILES_TO_PLACE = 12;
 const STEPS_REQUIRED_TO_INCREMENT_CELLS_TO_PLACE = 5;
 
+// Global variables used 
 var game = new Phaser.Game(config);
 var graphics;
 var placeButton;
+var rulesButton;
 var player = 0;
 var socket;
 var bubbleTween;
 var aliveCellsText;
 var cellsLeftToPlaceText;
 var steps_since_cell_to_place_incremented = 0;
+const MIN_NEIGHBORS_TO_SURVIVE = 2;
+const MAX_NEIGHBORS_TO_SURVIVE = 3;
 
+// Determine the size of the cells of the game and canvas
 let hspace = 10;
 let size = {
     x: CANVAS_WIDTH / hspace,
     y: (CANVAS_HEIGHT - 50) / hspace
 }
 
+// Used for loading the image of a bubble
 function preload() {
     this.load.image('bubble', 'assets/smaller_bubble.png');
 }
 
+// Main create function that maintains its listeners, UI adjustments, and takes in input
 function create() {
     var self = this;
     this.socket = io();
@@ -70,6 +81,13 @@ function create() {
     .on('pointerover', () => placeButtonHoverState())
     .on('pointerout', () => placeButtonRestState());
 
+    // Rules button
+    rulesButton = this.add.text(CANVAS_WIDTH / 2 + 400, (CANVAS_HEIGHT - (50 / 2) - 10), 'Rules', { fill: '#000000' })
+        .setInteractive()
+        .on('pointerdown', () => displayRules())
+        .on('pointerover', () => rulesButtonHoverState())
+        .on('pointerout', () => rulesButtonRestState());
+
     // When a new player is added, add all players including current player
     this.socket.on('currentPlayers', function(players) {
         Object.keys(players).forEach(function (id) {
@@ -89,6 +107,7 @@ function create() {
         addOtherPlayer(self, playerInfo);
     });
 
+    // Main step function that is set by setInterval call in the server
     this.socket.on('step', function (playerInfo) {
         bubbleTween.restart();
 
@@ -140,6 +159,7 @@ function create() {
         });
     });
 
+    // Main graphics object upon which all the UI is drawn
     graphics = this.add.graphics({
         lineStyle: {
             width: 1,
@@ -155,6 +175,7 @@ function create() {
         }
     }
 
+    // Upon a user clicking in an empty cell, have it be placed in the cell tiles to be placed structure.
     this.input.on('pointerdown', (pointer) => {
         if (pointer.isDown) {
             var color = 0x4287f5;
@@ -216,6 +237,7 @@ function create() {
 
 }
 
+// Clears grid and then redraws the user's tiles to place and filled tiles
 function redrawGrid() {
     // Draw initial grid
     graphics.clear();
@@ -228,6 +250,12 @@ function redrawGrid() {
     drawTilesToPlace();
 }
 
+// Main Game of Life function. Applies the rules of Game of Life 
+// as set in the constant variables in this method.
+// The performance of the game can be adjusted based on changes
+// to the constants such as setting MIN_NEIGHBORS_TO_SURVIVE to a number other than 2
+// and MAX_NEIGHBORS_TO_SURVIVE to a number other than 3, which are the default settings
+// for the traditional Game of Life game.
 function applyGoLRules() {
     // Clone of grid
     var newTilePlacements = [...player.placedTileLocations]
@@ -246,7 +274,7 @@ function applyGoLRules() {
                 index = getLocationIndex(player.placedTileLocations, currElement);
                 // If cell is alive
                 if (index > -1) {
-                    if (numNeighbors < 2 || numNeighbors > 3) {
+                    if (numNeighbors < MIN_NEIGHBORS_TO_SURVIVE || numNeighbors > MAX_NEIGHBORS_TO_SURVIVE) {
                         // Remove this cell from placedTileLocations since it died
                         for (var k = 0; k < newTilePlacements.length; k++) {
                             if (newTilePlacements[k].x == currElement.x && newTilePlacements[k].y == currElement.y) {
@@ -273,27 +301,14 @@ function applyGoLRules() {
 
     // Update UI accordingly
     updateAliveCellsText();
-    // updateCellsToPlaceText();
-
-    // Make sure to place filled tiles which in turn emits this to other players
-    // placeFilledTiles();
-
-    // if (getNumberOfAdjacentNeighboringBlocks(tile) == 2 || getNumberOfAdjacentNeighboringBlocks(tile) == 3) {
-    //     console.log(tile.x + ', ' + tile.y + ' lives!');
-    // } else {
-    //     console.log(tile.x + ', ' + tile.y + ' dies');
-    // }
-
-    // Any dead cell with three live neighbors becomes live
-
-    // All other cells die
-
 }
 
+// Updates the number of alive cells text UI to alert the user of their current 'score'
 function updateAliveCellsText() {
     aliveCellsText.text = 'Alive Cells: ' + player.placedTileLocations.length;
 }
 
+// Updates the number of cells a user has left to place in the UI
 function updateCellsToPlaceText() {
     cellsLeftToPlaceText.text = 'Cells to Place: ' + player.tilesToPlace;
 }
@@ -331,7 +346,7 @@ function getNumberOfAdjacentNeighboringBlocks(location) {
     return count;
 }
 
-// Returns number of neighboring blocks of a cell out of 8
+// Returns number of neighboring blocks of a cell out of a possible 8
 function getNumberOfNeighboringBlocks(location) {
     // Check up, up-right, right, down-right, down, down-left, left, up-left
     var xLocs = [hspace, hspace, 0, -1 * hspace, -1 * hspace, -1 * hspace, 0, hspace]
@@ -360,15 +375,32 @@ function getLocationIndex(array, location) {
     return -1;
 }
 
-
+// For when user is hovering over 'Place Tile' button
 function placeButtonHoverState() {
     placeButton.setStyle({ fill: '#f0b207' });
 }
 
+// For when no mouser hovering or clicking on 'Place Tile' button
 function placeButtonRestState() {
     placeButton.setStyle({ fill: '#000' });
 }
 
+// For when user is hovering over 'Rules' button
+function rulesButtonHoverState() {
+    rulesButton.setStyle({ fill: '#f0b207' });
+}
+
+// For when no mouser hovering or clicking on 'Rules' button
+function rulesButtonRestState() {
+    rulesButton.setStyle({ fill: '#000' });
+}
+
+// Displays rules to user
+function displayRules() {
+    window.open('https://docs.google.com/document/d/169VO83FgXEXiv1NImkiVdlav88jXB17FoYv6h9FYMQA/edit?usp=sharing', '_blank');
+}
+
+// Draws out other player's cell tiles
 function drawTiles(self, playerInfo) {
     graphics.fillStyle(playerInfo.color, 1.0);
     playerInfo.placedTileLocations.forEach(function(element, index) {
@@ -377,6 +409,7 @@ function drawTiles(self, playerInfo) {
     });
 }
 
+// Draws all tiles of the user
 function drawTilesToPlace(self) {
     var color = 0x4287f5;
     var thickness = 1;
@@ -387,20 +420,20 @@ function drawTilesToPlace(self) {
     });
 }
 
+// Adds player to its own group
 function addPlayer(self, playerInfo) {
-    self.test = self.add.image();//'hello';
+    self.test = self.add.image();
 }
 
+// Adds another player to the current Phaser Group for group management
 function addOtherPlayer(self, playerInfo) {
-    const otherPlayer = self.add.image();//'testOtherPlayer';
+    const otherPlayer = self.add.image();
     otherPlayer.playerId = playerInfo.playerId;
     self.otherPlayers.add(otherPlayer);
 }
 
-// function timerEvent(self) {
-//     console.log('in timerEvent');
-// }
-
+// Places tiles currently in user's tile to place locations when the user clicks
+// 'Place Tiles' button
 function placeTiles(self) {
     // Convert all tiles to place and put in placedTilesLocations
     for (var i = 0; i < player.tilesToPlaceLocations.length; i++) {
@@ -408,13 +441,14 @@ function placeTiles(self) {
     }
     // Empty out tilesToPlaceLocations
     player.tilesToPlaceLocations = [];
-    // TODO: Fill in all placed tiles
+    // Fill in all placed tiles
     // Placed currently filled tiles
     console.log('placed tiles: ')
     console.log(player.placedTileLocations)
     placeFilledTiles();
 }
 
+// Places user's tiles and emits new filled tiles to all other players as well
 function placeFilledTiles(self) {
     var color = 0x4287f5;
     var alpha = 1.0;
@@ -429,8 +463,5 @@ function placeFilledTiles(self) {
         // Emit tilePlaced call here
         socket.emit('tilePlaced', { x: element.x, y: element.y })
     }
-}
-
-function update() {
-
+    updateAliveCellsText();
 }
